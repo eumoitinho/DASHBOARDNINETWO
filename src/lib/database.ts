@@ -3,7 +3,7 @@
  * Handles database operations for clients, reports, and user management
  */
 
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client';
 
 // Global is used here to maintain a cached connection across hot reloads in development
 declare global {
