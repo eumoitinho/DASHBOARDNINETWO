@@ -1,0 +1,281 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  name        String
+  role        Role     @default(client)
+  clientId    String?
+  client      Client?  @relation(fields: [clientId], references: [id])
+  avatar      String?
+  isActive    Boolean  @default(true)
+  permissions String[]
+  lastLogin   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  activityLogs ActivityLog[]
+  reports      Report[]
+
+  @@map("users")
+}
+
+model Client {
+  id             String     @id @default(cuid())
+  name           String
+  email          String
+  slug           String     @unique
+  status         Status     @default(active)
+  monthlyBudget  Float
+  avatar         String?
+  tags           String[]
+  
+  // Additional client info
+  phone          String?
+  company        String?
+  website        String?
+  notes          String?
+  
+  // Portal Settings
+  logoUrl        String?
+  primaryColor   String     @default("#3B82F6")
+  secondaryColor String     @default("#8B5CF6")
+  allowedSections String[]  @default(["dashboard", "campanhas", "analytics", "relatorios", "configuracoes"])
+  customDomain   String?
+  
+  // API Connections
+  googleAdsConnected      Boolean @default(false)
+  googleAdsCustomerId     String?
+  googleAdsManagerId      String?
+  googleAdsLastSync       DateTime?
+  googleAdsCredentials    String? // encrypted
+  
+  facebookAdsConnected    Boolean @default(false)
+  facebookAdsAccountId    String?
+  facebookPixelId         String?
+  facebookAdsLastSync     DateTime?
+  facebookAdsCredentials  String? // encrypted
+  
+  googleAnalyticsConnected   Boolean @default(false)
+  googleAnalyticsPropertyId  String?
+  googleAnalyticsLastSync    DateTime?
+  googleAnalyticsCredentials String? // encrypted
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users         User[]
+  campaigns     Campaign[]
+  reports       Report[]
+  analyticsData AnalyticsData[]
+  activityLogs  ActivityLog[]
+  customCharts  CustomChart[]
+
+  @@map("clients")
+}
+
+model Campaign {
+  id           String   @id @default(cuid())
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  campaignId   String
+  campaignName String
+  platform     Platform
+  status       CampaignStatus
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  metrics CampaignMetric[]
+
+  @@unique([clientId, campaignId, platform])
+  @@map("campaigns")
+}
+
+model CampaignMetric {
+  id             String   @id @default(cuid())
+  campaignId     String
+  campaign       Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  date           DateTime
+  impressions    Int      @default(0)
+  clicks         Int      @default(0)
+  cost           Float    @default(0)
+  conversions    Int      @default(0)
+  ctr            Float    @default(0)
+  cpc            Float    @default(0)
+  cpm            Float    @default(0)
+  conversionRate Float    @default(0)
+  roas           Float    @default(0)
+  createdAt      DateTime @default(now())
+
+  @@unique([campaignId, date])
+  @@map("campaign_metrics")
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title       String
+  type        ReportType
+  periodFrom  DateTime
+  periodTo    DateTime
+  generatedBy String
+  user        User     @relation(fields: [generatedBy], references: [id])
+  isShared    Boolean  @default(false)
+  
+  // Report Data (JSON)
+  summary    Json? // Summary metrics
+  platforms  Json? // Platform breakdown
+  charts     Json? // Charts data
+  
+  createdAt DateTime @default(now())
+
+  @@map("reports")
+}
+
+model AnalyticsData {
+  id               String   @id @default(cuid())
+  clientId         String
+  client           Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  date             DateTime
+  sessions         Int      @default(0)
+  users            Int      @default(0)
+  newUsers         Int      @default(0)
+  pageviews        Int      @default(0)
+  bounceRate       Float    @default(0)
+  sessionDuration  Float    @default(0)
+  
+  // JSON fields for complex data
+  trafficSources   Json? // Array of traffic source data
+  deviceData       Json? // Array of device data
+  topPages         Json? // Array of top pages data
+  
+  createdAt DateTime @default(now())
+
+  @@unique([clientId, date])
+  @@map("analytics_data")
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId    String?
+  client      Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  action      String
+  description String
+  metadata    Json?    // Additional data
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@map("activity_logs")
+}
+
+model CustomChart {
+  id        String    @id @default(cuid())
+  clientId  String
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name      String
+  type      ChartType
+  metrics   String[]
+  period    Period    @default(THIRTY_DAYS)
+  groupBy   GroupBy   @default(date)
+  filters   Json?     @default("{}")
+  
+  // Style configuration
+  width     ChartWidth  @default(full)
+  height    ChartHeight @default(medium)
+  color     ChartColor  @default(primary)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("custom_charts")
+}
+
+// Enums
+enum Role {
+  admin
+  client
+  media_analyst
+}
+
+enum Status {
+  active
+  inactive
+  pending
+}
+
+enum Platform {
+  google_ads
+  facebook
+  meta
+}
+
+enum CampaignStatus {
+  active
+  paused
+  completed
+}
+
+enum ReportType {
+  daily
+  weekly
+  monthly
+  custom
+}
+
+enum ChartType {
+  line
+  bar
+  area
+  pie
+}
+
+enum Period {
+  SEVEN_DAYS
+  THIRTY_DAYS
+  NINETY_DAYS
+}
+
+enum GroupBy {
+  date
+  campaign
+  platform
+}
+
+enum ChartWidth {
+  full
+  half
+  quarter
+}
+
+enum ChartHeight {
+  small
+  medium
+  large
+}
+
+enum ChartColor {
+  primary
+  secondary
+  success
+  warning
+  info
+  danger
+}

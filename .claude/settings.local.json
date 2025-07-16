@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm list:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 10 npm run dev)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(npm run init-db:*)",
+      "Bash(npm run dev:*)",
+      "Bash(ls:*)",
+      "Bash(pnpm build:*)",
+      "Bash(npx next:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(find:*)",
+      "Bash(cp:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(pnpm dev:*)",
+      "Bash(node:*)",
+      "Bash(pnpm install:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma:*)",
+      "Bash(taskkill:*)"
+    ],
+    "deny": []
+  }
+}
