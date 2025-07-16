@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleAdsApi } from 'google-ads-api';
 import { prisma } from '@/lib/database';
 
 /**
@@ -40,32 +39,51 @@ export async function GET(request: NextRequest) {
       }, { status: 401 });
     }
 
-    // Configurar Google Ads API
-    const googleAds = new GoogleAdsApi({
-      client_id: process.env.GOOGLE_ADS_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET!,
-      developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+    // Obter access token do refresh token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: process.env.GOOGLE_ADS_CLIENT_ID!,
+        client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET!,
+        refresh_token: credentials.refresh_token,
+        grant_type: 'refresh_token',
+      }),
     });
 
-    // Obter contas acessíveis usando um customer temporário
-    // Para listAccessibleCustomers(), podemos usar qualquer customer_id válido
-    const tempCustomer = googleAds.Customer({
-      customer_id: '1234567890', // ID temporário para listAccessibleCustomers
-      refresh_token: credentials.refresh_token,
+    if (!tokenResponse.ok) {
+      throw new Error('Failed to refresh access token');
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+
+    // Obter contas acessíveis usando Google Ads REST API
+    const accountsResponse = await fetch('https://googleads.googleapis.com/v16/customers:listAccessibleCustomers', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+      },
     });
 
-    const customerAccounts = await tempCustomer.listAccessibleCustomers();
+    if (!accountsResponse.ok) {
+      throw new Error('Failed to fetch accessible customers');
+    }
+
+    const accountsData = await accountsResponse.json();
+    const customerAccounts = accountsData.resourceNames?.map((name: string) => 
+      name.replace('customers/', '')
+    ) || [];
     
     // Obter detalhes de cada conta
     const accountsDetails = [];
     for (const accountId of customerAccounts) {
       try {
-        const customerClient = googleAds.Customer({
-          customer_id: accountId,
-          refresh_token: credentials.refresh_token,
-        });
-
-        const accountInfo = await customerClient.query(`
+        // Usar Google Ads REST API para obter detalhes da conta
+        const query = `
           SELECT 
             customer.id,
             customer.descriptive_name,
@@ -74,16 +92,38 @@ export async function GET(request: NextRequest) {
             customer.test_account
           FROM customer
           WHERE customer.id = ${accountId}
-        `);
+        `;
 
-        if (accountInfo.length > 0) {
-          const account = accountInfo[0].customer;
+        const queryResponse = await fetch(`https://googleads.googleapis.com/v16/customers/${accountId}/googleAds:searchStream`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ query }),
+        });
+
+        if (queryResponse.ok) {
+          const queryData = await queryResponse.json();
+          if (queryData.results && queryData.results.length > 0) {
+            const account = queryData.results[0].customer;
+            accountsDetails.push({
+              id: account.id,
+              name: account.descriptive_name,
+              currency: account.currency_code,
+              timeZone: account.time_zone,
+              isTestAccount: account.test_account
+            });
+          }
+        } else {
+          // Fallback para conta básica
           accountsDetails.push({
-            id: account.id,
-            name: account.descriptive_name,
-            currency: account.currency_code,
-            timeZone: account.time_zone,
-            isTestAccount: account.test_account
+            id: accountId,
+            name: `Conta ${accountId}`,
+            currency: 'BRL',
+            timeZone: 'America/Sao_Paulo',
+            isTestAccount: false
           });
         }
       } catch (accountError) {
