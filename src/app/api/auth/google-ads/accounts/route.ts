@@ -47,12 +47,14 @@ export async function GET(request: NextRequest) {
       developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
     });
 
-    const customer = googleAds.Customer({
+    // Obter contas acessíveis usando um customer temporário
+    // Para listAccessibleCustomers(), podemos usar qualquer customer_id válido
+    const tempCustomer = googleAds.Customer({
+      customer_id: '1234567890', // ID temporário para listAccessibleCustomers
       refresh_token: credentials.refresh_token,
     });
 
-    // Obter contas acessíveis
-    const customerAccounts = await customer.listAccessibleCustomers();
+    const customerAccounts = await tempCustomer.listAccessibleCustomers();
     
     // Obter detalhes de cada conta
     const accountsDetails = [];
