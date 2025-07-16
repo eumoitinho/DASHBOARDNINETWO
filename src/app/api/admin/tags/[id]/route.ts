@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/database';
+import { prisma, getAllClients, updateClient } from '@/lib/database';
 import type { APIResponse } from '@/types/dashboard';
 
 /**
@@ -24,25 +24,27 @@ export async function PUT(
     }
 
     // Update tag in all clients that use it
+    const tagToUpdate = id.replace('tag-', '');
+    const clients = await getAllClients();
     
-    const clients = await (Client as any).find({ tags: { $in: [body.name] } });
+    // Filter clients that have the tag
+    const clientsWithTag = clients.filter(client => 
+      client.tags && client.tags.includes(tagToUpdate)
+    );
     
-    for (const client of clients) {
+    for (const client of clientsWithTag) {
       const updatedTags = client.tags.map(tag => 
-        tag === body.name ? body.name : tag
+        tag === tagToUpdate ? body.name.trim() : tag
       );
       
-      await (Client as any).findOneAndUpdate(
-        { _id: client._id },
-        { tags: updatedTags }
-      );
+      await updateClient(client.id, { tags: updatedTags });
     }
 
     const updatedTag = {
       id: id,
       name: body.name.trim(),
       color: body.color || 'primary',
-      count: clients.length
+      count: clientsWithTag.length
     };
 
     return NextResponse.json<APIResponse<any>>({
@@ -75,17 +77,19 @@ export async function DELETE(
   try {
     const { id } = await params;
     
-    
     // Remove tag from all clients that use it
-    const clients = await (Client as any).find({ tags: { $in: [id.replace('tag-', '')] } });
+    const tagToRemove = id.replace('tag-', '');
+    const clients = await getAllClients();
     
-    for (const client of clients) {
-      const updatedTags = client.tags.filter(tag => tag !== id.replace('tag-', ''));
+    // Filter clients that have the tag
+    const clientsWithTag = clients.filter(client => 
+      client.tags && client.tags.includes(tagToRemove)
+    );
+    
+    for (const client of clientsWithTag) {
+      const updatedTags = client.tags.filter(tag => tag !== tagToRemove);
       
-      await (Client as any).findOneAndUpdate(
-        { _id: client._id },
-        { tags: updatedTags }
-      );
+      await updateClient(client.id, { tags: updatedTags });
     }
 
     return NextResponse.json<APIResponse<null>>({

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/database';
+import { prisma, getAllClients } from '@/lib/database';
 import type { APIResponse } from '@/types/dashboard';
 
 /**
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     
     // Get all clients to extract unique tags
-    const clients = await (Client as any).find({});
+    const clients = await getAllClients();
     
     // Extract unique tags from clients
     const tagMap = new Map();
