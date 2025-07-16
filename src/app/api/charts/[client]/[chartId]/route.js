@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { findClientBySlug } from '@/lib/database';
+import { findClientBySlug, updateClient } from '@/lib/database';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -34,23 +34,20 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Delete chart from database
-    const Client = require('@/lib/database').default?.models?.Client || require('mongoose').model('Client');
+    // Delete chart from database using Prisma
+    const currentCharts = clientData.customCharts || [];
+    const updatedCharts = currentCharts.filter(chart => chart.id !== chartId);
     
-    const result = await Client.updateOne(
-      { slug: client },
-      { 
-        $pull: { customCharts: { id: chartId } },
-        $set: { updatedAt: new Date() }
-      }
-    );
-
-    if (result.modifiedCount === 0) {
+    if (currentCharts.length === updatedCharts.length) {
       return NextResponse.json(
         { success: false, message: 'Gráfico não encontrado' },
         { status: 404 }
       );
     }
+    
+    await updateClient(clientData.id, {
+      customCharts: updatedCharts
+    });
     
     return NextResponse.json({
       success: true,

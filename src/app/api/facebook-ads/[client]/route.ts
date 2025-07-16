@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createFacebookAdsClient, getFacebookDateRange } from '@/lib/facebook-ads';
 import { withCache, generateCacheKey } from '@/lib/cache';
-import { prisma } from '@/lib/database';
+import { prisma, findClientBySlug, updateClient } from '@/lib/database';
 import type { APIResponse, CampaignMetrics, Campaign } from '@/types/dashboard';
 
 /**
@@ -22,7 +22,7 @@ export async function GET(
     const useCache = searchParams.get('cache') !== 'false';
 
     // Connect to database and get client configuration
-    const clientData = await (Client as any).findOne({ slug: client });
+    const clientData = await findClientBySlug(client);
     
     if (!clientData) {
       return NextResponse.json<APIResponse<null>>({
@@ -129,7 +129,7 @@ export async function POST(
     const { client } = await params;
     
     // Connect to database and get client configuration
-    const clientData = await (Client as any).findOne({ slug: client });
+    const clientData = await findClientBySlug(client);
     
     if (!clientData) {
       return NextResponse.json<APIResponse<null>>({
@@ -158,16 +158,13 @@ export async function POST(
     const isConnected = await facebookAdsClient.testConnection();
 
     // Update connection status in database
-    await (Client as any).updateOne(
-      { slug: client },
-      { 
-        $set: { 
-          'facebookAds.connected': isConnected,
-          'facebookAds.lastSync': isConnected ? new Date() : null,
-          updatedAt: new Date()
-        } 
+    await updateClient(clientData.id, {
+      facebookAds: {
+        ...clientData.facebookAds,
+        connected: isConnected,
+        lastSync: isConnected ? new Date() : null,
       }
-    );
+    });
 
     return NextResponse.json<APIResponse<{ connected: boolean }>>({
       success: true,

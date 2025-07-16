@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { findClientBySlug } from '@/lib/database';
+import { findClientBySlug, updateClient } from '@/lib/database';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -92,30 +92,23 @@ export async function POST(request, { params }) {
       updatedAt: new Date()
     };
 
-    // Save chart to database
-    const Client = require('@/lib/database').default?.models?.Client || require('mongoose').model('Client');
+    // Save chart to database using Prisma
+    const currentCharts = clientData.customCharts || [];
+    let updatedCharts;
     
-    if (chartConfig.id && clientData.customCharts.find(c => c.id === chartConfig.id)) {
+    if (chartConfig.id && currentCharts.find(c => c.id === chartConfig.id)) {
       // Update existing chart
-      await Client.updateOne(
-        { slug: client, 'customCharts.id': chartConfig.id },
-        { 
-          $set: { 
-            'customCharts.$': newChart,
-            updatedAt: new Date()
-          }
-        }
+      updatedCharts = currentCharts.map(chart => 
+        chart.id === chartConfig.id ? newChart : chart
       );
     } else {
       // Add new chart
-      await Client.updateOne(
-        { slug: client },
-        { 
-          $push: { customCharts: newChart },
-          $set: { updatedAt: new Date() }
-        }
-      );
+      updatedCharts = [...currentCharts, newChart];
     }
+    
+    await updateClient(clientData.id, {
+      customCharts: updatedCharts
+    });
     
     return NextResponse.json({
       success: true,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { findClientBySlug } from '@/lib/database';
+import { findClientBySlug, prisma } from '@/lib/database';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -34,12 +34,15 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Get reports from database
-    const Report = require('@/lib/database').default?.models?.Report || require('mongoose').model('Report');
-    
-    const reports = await Report.find({ 
-      clientId: clientData._id 
-    }).sort({ createdAt: -1 });
+    // Get reports from database using Prisma
+    const reports = await prisma.report.findMany({
+      where: {
+        clientId: clientData.id
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
 
     return NextResponse.json({
       success: true,
@@ -136,8 +139,17 @@ async function generateReport(clientData, type, period) {
     }
   };
 
-  // TODO: Save report to database
-  // await saveReportToDatabase(clientData._id, report);
+  // Save report to database using Prisma
+  await prisma.report.create({
+    data: {
+      clientId: clientData.id,
+      name: report.name,
+      type: report.type,
+      period: report.period,
+      status: report.status,
+      summary: report.summary
+    }
+  });
 
   return report;
 }

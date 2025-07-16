@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { findClientBySlug } from '@/lib/database';
+import { findClientBySlug, updateClient } from '@/lib/database';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -121,24 +121,18 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Update client settings in database
-    // For now, just return success
-    // TODO: Implement actual database update
-    /*
-    await Client.findByIdAndUpdate(clientData._id, {
-      $set: {
-        name: settings.profile.name,
-        email: settings.profile.email,
-        phone: settings.profile.phone,
-        website: settings.profile.website,
-        address: settings.profile.address,
-        description: settings.profile.description,
-        'settings.notifications': settings.notifications,
-        'settings.privacy': settings.privacy,
-        updatedAt: new Date()
-      }
-    });
-    */
+    // Update client settings in database using Prisma
+    const updateData = {
+      name: settings.profile.name,
+      email: settings.profile.email,
+      phone: settings.profile.phone,
+      website: settings.profile.website,
+      notes: settings.profile.description,
+      // Store settings as JSON in a field or handle separately
+      // For now, we'll store basic profile info
+    };
+    
+    await updateClient(clientData.id, updateData);
 
     return NextResponse.json({
       success: true,
