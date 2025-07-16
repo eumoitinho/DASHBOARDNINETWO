@@ -3,60 +3,14 @@
  * Handles database operations for clients, reports, and user management
  */
 
-// Temporary workaround for PrismaClient import issue
-let PrismaClient: any;
+import { PrismaClient } from '@prisma/client'
 
-try {
-  PrismaClient = require('@prisma/client').PrismaClient;
-} catch (error) {
-  // Fallback mock for build/development
-  console.warn('PrismaClient not found, using mock for build');
-  PrismaClient = class MockPrismaClient {
-    client = {
-      findUnique: () => Promise.resolve(null),
-      findMany: () => Promise.resolve([]),
-      create: () => Promise.resolve({}),
-      update: () => Promise.resolve({}),
-      delete: () => Promise.resolve({}),
-      upsert: () => Promise.resolve({}),
-    };
-    user = {
-      findUnique: () => Promise.resolve(null),
-      findMany: () => Promise.resolve([]),
-      create: () => Promise.resolve({}),
-      update: () => Promise.resolve({}),
-    };
-    activityLog = {
-      create: () => Promise.resolve({}),
-    };
-    campaign = {
-      findMany: () => Promise.resolve([]),
-      upsert: () => Promise.resolve({}),
-    };
-    campaignMetric = {
-      createMany: () => Promise.resolve({}),
-    };
-    analyticsData = {
-      upsert: () => Promise.resolve({}),
-      findMany: () => Promise.resolve([]),
-    };
-    report = {
-      findMany: () => Promise.resolve([]),
-      create: () => Promise.resolve({}),
-    };
-  };
-}
-
-// Global é usado aqui para manter uma conexão em cache durante hot reloads no desenvolvimento
+// Global is used here to maintain a cached connection across hot reloads in development
 declare global {
-  // Corrigido para usar 'typeof PrismaClient' como tipo
-  // conforme a mensagem de erro do lint
-  // eslint-disable-next-line no-var
-  var prisma: InstanceType<typeof PrismaClient> | undefined;
+  var prisma: PrismaClient | undefined;
 }
 
-export const prisma: InstanceType<typeof PrismaClient> =
-  globalThis.prisma || new PrismaClient();
+export const prisma = globalThis.prisma || new PrismaClient();
 
 if (process.env.NODE_ENV !== 'production') {
   globalThis.prisma = prisma;
