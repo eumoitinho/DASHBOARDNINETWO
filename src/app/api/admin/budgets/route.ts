@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/database';
+import { prisma, getAllClients } from '@/lib/database';
 import type { APIResponse } from '@/types/dashboard';
 
 /**
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     
     
     // Get all clients to create budget data
-    const clients = await (Client as any).find({});
+    const clients = await getAllClients();
     
     // Create budget data based on clients
     const budgets = clients.map(client => {
@@ -25,8 +25,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const remaining = budget - spent;
       
       return {
-        _id: `budget-${client._id}`,
-        clientId: client._id,
+        _id: `budget-${client.id}`,
+        clientId: client.id,
         clientSlug: client.slug,
         clientName: client.name,
         period: currentPeriod,
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         spent: spent,
         remaining: remaining,
         status: client.status === 'active' ? 'active' : 'pending',
-        channels: client.googleAds?.connected ? ['Google Ads'] : [],
+        channels: client.googleAdsConnected ? ['Google Ads'] : [],
         notes: `Orçamento para ${client.name}`,
         createdAt: client.createdAt,
         updatedAt: client.updatedAt
@@ -80,7 +80,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Check if client exists
-    const client = await (Client as any).findById(body.clientId);
+    const client = await prisma.client.findUnique({
+      where: { id: body.clientId }
+    });
     if (!client) {
       return NextResponse.json<APIResponse<null>>({
         success: false,
