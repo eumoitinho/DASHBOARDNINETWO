@@ -5,7 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 
-// Global is used here to maintain a cached connection across hot reloads in development
+// Global é usado aqui para manter uma conexão em cache durante hot reloads no desenvolvimento
 declare global {
   var prisma: PrismaClient | undefined;
 }
