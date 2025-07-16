@@ -25,6 +25,7 @@
     "@phosphor-icons/react": "^2.1.7",
     "@popperjs/core": "^2.11.8",
     "@prisma/client": "^6.12.0",
+    "@prisma/engines": "^6.12.0",
     "@ramonak/react-progress-bar": "^5.2.0",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",

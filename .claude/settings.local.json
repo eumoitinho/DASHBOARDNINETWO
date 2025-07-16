@@ -27,7 +27,8 @@
       "Bash(npx prisma:*)",
       "Bash(taskkill:*)",
       "Bash(pnpm run:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(pnpm prisma generate:*)"
     ],
     "deny": []
   }
