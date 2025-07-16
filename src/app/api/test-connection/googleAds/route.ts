@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleAdsApi } from 'google-ads-api';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,27 +34,56 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // Tentar conexão real com Google Ads
+    // Tentar conexão real com Google Ads usando REST API
     try {
-      const client = new GoogleAdsApi({
-        client_id: clientId,
-        client_secret: clientSecret,
-        developer_token: developerToken,
+      // Obter access token
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token',
+        }),
       });
 
-      const customer = client.Customer({
-        customer_id: customerId,
-        refresh_token: refreshToken,
+      if (!tokenResponse.ok) {
+        throw new Error('Failed to refresh access token');
+      }
+
+      const tokenData = await tokenResponse.json();
+      const accessToken = tokenData.access_token;
+
+      // Testar conexão fazendo uma query simples
+      const queryResponse = await fetch(`https://googleads.googleapis.com/v16/customers/${customerId}/googleAds:searchStream`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'developer-token': developerToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: `
+            SELECT 
+              campaign.id,
+              campaign.name,
+              campaign.status
+            FROM campaign 
+            LIMIT 1
+          `
+        }),
       });
 
-      const campaigns = await customer.query(`
-        SELECT 
-          campaign.id,
-          campaign.name,
-          campaign.status
-        FROM campaign 
-        LIMIT 1
-      `);
+      if (!queryResponse.ok) {
+        const errorData = await queryResponse.json().catch(() => ({}));
+        throw new Error(`Google Ads API error: ${queryResponse.status} - ${JSON.stringify(errorData)}`);
+      }
+
+      const queryData = await queryResponse.json();
+      const campaigns = queryData.results || [];
 
       return NextResponse.json({
         success: true,
