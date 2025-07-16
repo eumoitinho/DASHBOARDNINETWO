@@ -25,7 +25,8 @@
       "Bash(pnpm install:*)",
       "Bash(npx prisma generate:*)",
       "Bash(npx prisma:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(pnpm run:*)"
     ],
     "deny": []
   }

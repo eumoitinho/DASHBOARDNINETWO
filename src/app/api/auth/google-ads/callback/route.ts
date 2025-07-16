@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { GoogleAdsApi } from 'google-ads-api';
 import { prisma } from '@/lib/database';
 
 // OAuth2 setup para Google Ads
@@ -38,30 +37,29 @@ export async function GET(request: NextRequest) {
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    // Tentar obter informações das contas Google Ads
+    // Tentar obter informações das contas Google Ads usando REST API
     let customerAccounts = [];
     try {
-      const googleAds = new GoogleAdsApi({
-        client_id: process.env.GOOGLE_ADS_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET!,
-        developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
-      });
+      if (tokens.access_token) {
+        // Usar Google Ads REST API para listar contas
+        const accountsResponse = await fetch('https://googleads.googleapis.com/v16/customers:listAccessibleCustomers', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${tokens.access_token}`,
+            'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+          },
+        });
 
-      // Usar o refresh token para autenticar
-      const customer = googleAds.Customer({
-        refresh_token: tokens.refresh_token!,
-      });
-
-      // Tentar listar contas acessíveis (pode falhar se não tiver developer token válido)
-      try {
-        const accountsResponse = await customer.listAccessibleCustomers();
-        customerAccounts = accountsResponse || [];
-      } catch (adsError) {
-        console.warn('Não foi possível listar contas Google Ads:', adsError);
-        // Não é um erro crítico, apenas registramos
+        if (accountsResponse.ok) {
+          const accountsData = await accountsResponse.json();
+          customerAccounts = accountsData.resourceNames?.map((name: string) => 
+            name.replace('customers/', '')
+          ) || [];
+        }
       }
     } catch (adsError) {
-      console.warn('Erro ao conectar Google Ads API:', adsError);
+      console.warn('Não foi possível listar contas Google Ads:', adsError);
+      // Não é um erro crítico, apenas registramos
     }
 
     // Salvar tokens no banco de dados (criptografados)
